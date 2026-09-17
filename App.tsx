@@ -2,11 +2,15 @@ import { useEffect, useState } from "react";
 import { Alert, FlatList, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-type Item = { id: string; nome: string; quantidade: number; unidade: string; comprado: boolean };
+import { Header } from "./components/Header";
+import { ListItem } from "./components/ListItem";
+import { ItemCounter } from "./components/ItemCounter";
+import { ShoppingItem } from "./types/shopping-item";
+
 const STORAGE = "@lista";
 
 export default function App() {
-  const [itens, setItens] = useState<Item[]>([]);
+  const [itens, setItens] = useState<ShoppingItem[]>([]);
   const [nome, setNome] = useState("");
   const [quantidade, setQuantidade] = useState(1);
   const [unidade, setUnidade] = useState("un");
@@ -58,24 +62,6 @@ export default function App() {
   const carrinho = itens.filter(i => i.comprado);
   const progresso = itens.length ? carrinho.length / itens.length : 0;
 
-  const lista = (dados: Item[]) => dados.map(item => (
-    <View style={[s.item, item.comprado && s.comprado]} key={item.id}>
-      <Pressable style={s.itemInfo} onPress={() => marcar(item.id)}>
-        <View style={[s.circulo, item.comprado && s.circuloAtivo]}>
-          {item.comprado && <Text style={s.check}>✓</Text>}
-        </View>
-        <Text style={[s.nome, item.comprado && s.nomeComprado]}>{item.nome}</Text>
-      </Pressable>
-
-      <View style={s.acoes}>
-        <Text style={s.quantidade}>{item.quantidade} {item.unidade}</Text>
-        <Pressable style={s.remover} onPress={() => remover(item.id)}>
-          <Text style={s.x}>×</Text>
-        </Pressable>
-      </View>
-    </View>
-  ));
-
   if (carregando) {
     return <View style={s.carregando}><Text style={s.acento}>Carregando...</Text></View>;
   }
@@ -83,21 +69,12 @@ export default function App() {
   return (
     <KeyboardAvoidingView style={s.tela} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <View style={s.conteudo}>
-        <Text style={s.rotulo}>MINHA LISTA</Text>
-        <Text style={s.titulo}>Compras da semana</Text>
-
-        {itens.length > 0 && (
-          <>
-            <View style={s.resumo}>
-              <Text style={s.auxiliar}>{pendentes.length} pendentes</Text>
-              <Text style={s.auxiliar}>{carrinho.length} de {itens.length} no carrinho</Text>
-            </View>
-
-            <View style={s.barra}>
-              <View style={[s.progresso, { width: `${progresso * 100}%` }]} />
-            </View>
-          </>
-        )}
+        <Header
+          pendentes={pendentes.length}
+          carrinho={carrinho.length}
+          total={itens.length}
+          progresso={progresso}
+        />
 
         {itens.length === 0 ? (
           <View style={s.vazio}>
@@ -116,13 +93,28 @@ export default function App() {
                 {pendentes.length > 0 && (
                   <>
                     <Text style={s.secao}>PENDENTES</Text>
-                    {lista(pendentes)}
+                    {pendentes.map(item => (
+                      <ListItem
+                        key={item.id}
+                        item={item}
+                        onMarcar={marcar}
+                        onRemover={remover}
+                      />
+                    ))}
                   </>
                 )}
+
                 {carrinho.length > 0 && (
                   <>
                     <Text style={s.secao}>NO CARRINHO • {carrinho.length}</Text>
-                    {lista(carrinho)}
+                    {carrinho.map(item => (
+                      <ListItem
+                        key={item.id}
+                        item={item}
+                        onMarcar={marcar}
+                        onRemover={remover}
+                      />
+                    ))}
                   </>
                 )}
               </View>
@@ -147,15 +139,11 @@ export default function App() {
             </View>
 
             <View style={s.controles}>
-              <View style={s.contador}>
-                <Pressable onPress={() => setQuantidade(Math.max(1, quantidade - 1))}>
-                  <Text style={s.contadorTexto}>−</Text>
-                </Pressable>
-                <Text style={s.numero}>{quantidade}</Text>
-                <Pressable onPress={() => setQuantidade(quantidade + 1)}>
-                  <Text style={s.contadorTexto}>+</Text>
-                </Pressable>
-              </View>
+              <ItemCounter
+                quantidade={quantidade}
+                onDiminuir={() => setQuantidade(Math.max(1, quantidade - 1))}
+                onAumentar={() => setQuantidade(quantidade + 1)}
+              />
 
               {["un", "kg", "cx", "pct"].map(u => (
                 <Pressable
